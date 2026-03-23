@@ -102,19 +102,34 @@ class PoXliffUnit(xliff.xliffunit):
         # TODO: consider changing from plural to singular, etc.
         self._rich_source = None
         if not hasplurals(source):
+            if self.hasplural():
+                # Don't add <source> directly on the <group> element.
+                # Set source on each child trans-unit instead.
+                for unit in self.units:
+                    unit.source = source
+                return
             super().setsource(source, sourcelang)
         else:
             target = self.target
+            # Remove any stale <source> element directly on the group
+            for child in list(self.xmlelement):
+                if child.tag == self.namespaced("source"):
+                    self.xmlelement.remove(child)
             for unit in self.units:
                 with contextlib.suppress(ValueError):
                     self.xmlelement.remove(unit.xmlelement)
             self.units = []
             for s in source.strings:
                 newunit = xliff.xliffunit(s)
-                #                newunit.namespace = self.namespace #XXX?necessary?
                 self.units.append(newunit)
                 self.xmlelement.append(newunit.xmlelement)
-            self.target = target
+            # Propagate group ID to new child trans-units
+            group_id = self.xmlelement.get("id")
+            if group_id and len(self.units) > 1:
+                for i, unit in enumerate(self.units):
+                    unit.setid(f"{group_id}[{i}]")
+            if target is not None:
+                self.target = target
 
     # We don't support any rich strings yet
     multistring_to_rich = base.TranslationUnit.multistring_to_rich  # ty:ignore[invalid-method-override]
@@ -137,6 +152,11 @@ class PoXliffUnit(xliff.xliffunit):
             return
         if not self.hasplural():
             super().settarget(target, lang, append)
+            return
+        if target is None:
+            # Clear targets on all child units
+            for unit in self.units:
+                unit.target = None
             return
         if not isinstance(target, multistring):
             target = multistring(target)

@@ -44,6 +44,59 @@ class TestPOXLIFFUnit(test_xliff.TestXLIFFUnit):
         assert unit.getid() == "20"
         assert unit.units[1].getid() == "20[1]"
 
+    def test_setsource_preserves_child_ids(self) -> None:
+        """Tests that setsource propagates group ID to new child trans-units."""
+        unit = self.UnitClass(multistring(["cow", "cows"]))
+        unit.setid("L_PLU.TEST")
+        assert unit.units[0].xmlelement.get("id") == "L_PLU.TEST[0]"
+        assert unit.units[1].xmlelement.get("id") == "L_PLU.TEST[1]"
+
+        # Resetting source should propagate IDs to new children
+        unit.source = multistring(["cow", "cows", "cows"])
+        assert unit.xmlelement.get("id") == "L_PLU.TEST"
+        assert unit.units[0].xmlelement.get("id") == "L_PLU.TEST[0]"
+        assert unit.units[1].xmlelement.get("id") == "L_PLU.TEST[1]"
+        assert unit.units[2].xmlelement.get("id") == "L_PLU.TEST[2]"
+
+    def test_setsource_nonplural_on_plural_group(self) -> None:
+        """Tests that setting a non-plural source on a plural group doesn't
+        add <source> to the group element."""
+        unit = self.UnitClass(multistring(["cow", "cows"]))
+        unit.setid("L_PLU.TEST")
+
+        # Setting a single string source should update child units, not group
+        unit.source = "updated"
+        assert unit.hasplural()
+        # Should NOT have <source> directly on the group
+        ns = unit.namespaced("source")
+        group_sources = [c for c in unit.xmlelement if c.tag == ns]
+        assert len(group_sources) == 0
+        # Child units should have the updated source
+        assert unit.units[0].source == "updated"
+        assert unit.units[1].source == "updated"
+
+    def test_settarget_none_on_plural(self) -> None:
+        """Tests that setting target to None on a plural unit doesn't create
+        empty target elements."""
+        unit = self.UnitClass(multistring(["cow", "cows"]))
+        unit.setid("L_PLU.TEST")
+        unit.target = multistring(["vache", "vaches"])
+        assert unit.target.strings == ["vache", "vaches"]
+
+        # Setting target to None should clear targets
+        unit.target = None
+        for child_unit in unit.units:
+            assert child_unit.target is None
+
+    def test_construction_no_empty_targets(self) -> None:
+        """Tests that constructing a plural unit doesn't add empty <target>
+        elements to child trans-units."""
+        unit = self.UnitClass(multistring(["cow", "cows"]))
+        ns = unit.namespaced("target")
+        for child_unit in unit.units:
+            targets = list(child_unit.xmlelement.iterchildren(ns))
+            assert len(targets) == 0
+
 
 class TestPOXLIFFfile(test_xliff.TestXLIFFfile):
     StoreClass = poxliff.PoXliffFile
