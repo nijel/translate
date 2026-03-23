@@ -24,7 +24,6 @@ This way the API supports plurals as if it was a PO file, for example.
 """
 
 import contextlib
-import re
 from typing import TypeVar
 
 from lxml import etree
@@ -33,8 +32,6 @@ from translate.misc.multistring import multistring
 from translate.misc.xml_helpers import get_safe_xml_parser, setXMLspace
 from translate.storage import base, lisa, poheader, xliff
 from translate.storage.placeables import general
-
-plural_id_re = re.compile(r".+\[[1-9]\d*\]$")
 
 
 def hasplurals(thing):
@@ -349,12 +346,20 @@ class PoXliffFile(xliff.xlifffile[U], poheader.poheader):
 
         def isnonpluralunit(node):
             """
-            Determines whether the xml node contains a plural like id.
+            Determines whether the xml node should be handled as a standalone
+            unit during iteration.
 
-            We want to filter out all the plural nodes, except the very first
-            one in each group.
+            We want to filter out plural children except the first trans-unit in
+            each plural group, because that first child acts as the placeholder
+            where we inject the whole plural group back into the unit stream.
             """
-            return plural_id_re.match(node.get("id") or "") is None
+            parent = node.getparent()
+            if parent is None or not ispluralgroup(parent):
+                return True
+            first_plural_child = next(
+                parent.iterchildren(self.namespaced(self.UnitClass.rootNode)), None
+            )
+            return node is first_plural_child
 
         def pluralunits(pluralgroups):
             for pluralgroup in pluralgroups:
