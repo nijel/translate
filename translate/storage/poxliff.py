@@ -34,7 +34,7 @@ from translate.misc.xml_helpers import get_safe_xml_parser, setXMLspace
 from translate.storage import base, lisa, poheader, xliff
 from translate.storage.placeables import general
 
-plural_id_re = re.compile(r".+\[[123456]\]$")
+plural_id_re = re.compile(r".+\[[1-9]\d*\]$")
 
 
 def hasplurals(thing):
@@ -99,7 +99,6 @@ class PoXliffUnit(xliff.xliffunit):
         self.setsource(source, sourcelang="en")
 
     def setsource(self, source, sourcelang="en") -> None:  # ty:ignore[invalid-method-override]
-        # TODO: consider changing from plural to singular, etc.
         self._rich_source = None
         if not hasplurals(source):
             if self.hasplural():
@@ -387,7 +386,11 @@ class PoXliffFile(xliff.xlifffile[U], poheader.poheader):
 
         for entry in singularunits:
             term = self.UnitClass.createfromxmlElement(entry, namespace=self.namespace)
-            if nextplural and str(term.getid()) == (f"{nextplural.getid()}[0]"):
+            if (
+                nextplural
+                and nextplural.units
+                and entry is nextplural.units[0].xmlelement
+            ):
                 self.addunit(nextplural, new=False)
                 nextplural = next(pluralunit_iter, None)
             else:

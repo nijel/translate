@@ -145,9 +145,10 @@ class TestPOXLIFFfile(test_xliff.TestXLIFFfile):
         )
         xlifffile = self.StoreClass.parsestring(minixlf)
         assert len(xlifffile.units) == 1
+        assert xlifffile.units[0].hasplural()
         assert xlifffile.translate("cow") == "inkomo"
         assert xlifffile.units[0].source == "cow"
-        assert xlifffile.units[0].source == multistring(["cow", "cows"])
+        assert xlifffile.units[0].source.strings == ["cow", "cows"]
 
     def test_parse_plural_alpha_id(self) -> None:
         minixlf = (
@@ -165,9 +166,10 @@ class TestPOXLIFFfile(test_xliff.TestXLIFFfile):
         )
         xlifffile = self.StoreClass.parsestring(minixlf)
         assert len(xlifffile.units) == 1
+        assert xlifffile.units[0].hasplural()
         assert xlifffile.translate("cow") == "inkomo"
         assert xlifffile.units[0].source == "cow"
-        assert xlifffile.units[0].source == multistring(["cow", "cows"])
+        assert xlifffile.units[0].source.strings == ["cow", "cows"]
 
     def test_notes(self) -> None:
         minixlf = (
@@ -220,3 +222,28 @@ class TestPOXLIFFfile(test_xliff.TestXLIFFfile):
             "This field must contain at least {0,number} characters",
         ]
         assert unit.target == ["", ""]
+
+    def test_parse_plural_many_forms(self) -> None:
+        """Tests parsing plural groups with more than 6 forms (e.g. Arabic)."""
+        forms = []
+        for i in range(7):
+            forms.append(
+                f'<trans-unit id="ar[{i}]" xml:space="preserve">'
+                f"<source>form{i}</source>"
+                f"<target>target{i}</target>"
+                f"</trans-unit>"
+            )
+        minixlf = (
+            self.xliffskeleton
+            % (
+                '<group id="ar" restype="x-gettext-plurals">'
+                + "\n".join(forms)
+                + "</group>"
+            )
+        )
+        xlifffile = self.StoreClass.parsestring(minixlf)
+        assert len(xlifffile.units) == 1
+        unit = xlifffile.units[0]
+        assert unit.hasplural()
+        assert len(unit.units) == 7
+        assert unit.source.strings == [f"form{i}" for i in range(7)]
