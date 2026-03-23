@@ -75,6 +75,26 @@ class TestPOXLIFFUnit(test_xliff.TestXLIFFUnit):
         assert unit.units[0].source == "updated"
         assert unit.units[1].source == "updated"
 
+    def test_setsource_nonplural_removes_stale_group_source(self) -> None:
+        """Tests that setting a non-plural source on a plural group also
+        removes any stale <source> element on the group."""
+        from lxml import etree
+
+        unit = self.UnitClass(multistring(["cow", "cows"]))
+        unit.setid("L_PLU.TEST")
+        # Manually inject a stale <source> on the group (simulating old buggy data)
+        stale_source = etree.SubElement(unit.xmlelement, unit.namespaced("source"))
+        stale_source.text = "stale"
+        ns = unit.namespaced("source")
+        assert len([c for c in unit.xmlelement if c.tag == ns]) == 1
+
+        # Setting non-plural source should clean up the stale <source>
+        unit.source = "updated"
+        group_sources = [c for c in unit.xmlelement if c.tag == ns]
+        assert len(group_sources) == 0
+        assert unit.units[0].source == "updated"
+        assert unit.units[1].source == "updated"
+
     def test_settarget_none_on_plural(self) -> None:
         """Tests that setting target to None on a plural unit doesn't create
         empty target elements."""

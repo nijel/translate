@@ -107,6 +107,10 @@ class PoXliffUnit(xliff.xliffunit):
                 # Set source on each child trans-unit instead.
                 for unit in self.units:
                     unit.source = source
+                # Also remove any stale <source> element directly on the group
+                for child in list(self.xmlelement):
+                    if child.tag == self.namespaced("source"):
+                        self.xmlelement.remove(child)
                 return
             super().setsource(source, sourcelang)
         else:
