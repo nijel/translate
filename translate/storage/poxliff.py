@@ -125,7 +125,7 @@ class PoXliffUnit(xliff.xliffunit):
                 self.xmlelement.append(newunit.xmlelement)
             # Propagate group ID to new child trans-units
             group_id = self.xmlelement.get("id")
-            if group_id and len(self.units) > 1:
+            if group_id and self.units:
                 for i, unit in enumerate(self.units):
                     unit.setid(f"{group_id}[{i}]")
             if target is not None:
